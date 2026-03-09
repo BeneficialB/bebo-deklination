@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Artikel-Trainer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════════ */
+    :root {
+      --m:   #5BA4F5;
+      --f:   #F5717A;
+      --n:   #4EC994;
+      --p:   #F5A623;
+
+      --m-bg: rgba(91,164,245,0.09);
+      --f-bg: rgba(245,113,122,0.09);
+      --n-bg: rgba(78,201,148,0.09);
+      --p-bg: rgba(245,166,35,0.09);
+
+      --m-border: rgba(91,164,245,0.45);
+      --f-border: rgba(245,113,122,0.45);
+      --n-border: rgba(78,201,148,0.45);
+      --p-border: rgba(245,166,35,0.45);
+
+      --bg:          #0C0E16;
+      --surface:     #13162A;
+      --card:        #161929;
+      --card-hover:  #1c2035;
+      --border:      rgba(255,255,255,0.07);
+      --border-focus:rgba(91,164,245,0.5);
+      --text:        #E8ECF8;
+      --text-muted:  #5A6080;
+      --text-dim:    #8A90B4;
+
+      --toolbar-h: 56px;
+      --gap: 10px;
+      --r: 14px;
+
+      --cell-fs: 64px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══════════════════════════════════════════════
+       TOOLBAR
+    ═══════════════════════════════════════════════ */
+    #toolbar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: var(--toolbar-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 8px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      overflow-x: auto;
+      overflow-y: hidden;
+      /* Scrollbar verstecken aber scrollbar bleiben */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      /* Max-Breite: alle Inhalte müssen passen */
+      min-width: 0;
+    }
+    #toolbar::-webkit-scrollbar { display: none; }
+
+    /* Divider */
+    .sep {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      flex-shrink: 0;
+      margin: 0 3px;
+    }
+
+    /* ── Generischer Button ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 6px 9px;
+      border-radius: 8px;
+      border: 1.5px solid transparent;
+      background: rgba(255,255,255,0.05);
+      color: var(--text-dim);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+      user-select: none;
+      min-width: 34px;
+      height: 36px;
+    }
+    .btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      transform: translateY(-1px);
+    }
+    .btn.on {
+      background: rgba(91,164,245,0.15);
+      border-color: rgba(91,164,245,0.4);
+      color: var(--m);
+      box-shadow: 0 0 12px rgba(91,164,245,0.12);
+    }
+    .btn.danger { color: #F5717A; }
+    .btn.danger:hover { background: rgba(245,113,122,0.12); }
+
+    /* ── Farb-Buttons (nur farbpunkt, kein Text) ── */
+    .farbpunkt {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .cb-m .farbpunkt { background: var(--m); }
+    .cb-f .farbpunkt { background: var(--f); }
+    .cb-n .farbpunkt { background: var(--n); }
+    .cb-p .farbpunkt { background: var(--p); }
+    .cb-w .farbpunkt { background: #fff; box-shadow: 0 0 0 1px #555; }
+    .cb-y .farbpunkt { background: #FFD600; }
+    .cb-c .farbpunkt { background: #00E5FF; }
+    .cb-mg .farbpunkt { background: #FF40C8; }
+    .cb-r .farbpunkt { background: #888; }
+
+    .farb-btn { padding: 6px 7px; }
+
+    .farb-btn.aktiv { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; }
+    .cb-m.aktiv  { border-color: var(--m); background: rgba(91,164,245,0.15);  color: var(--m); }
+    .cb-f.aktiv  { border-color: var(--f); background: rgba(245,113,122,0.15); color: var(--f); }
+    .cb-n.aktiv  { border-color: var(--n); background: rgba(78,201,148,0.15);  color: var(--n); }
+    .cb-p.aktiv  { border-color: var(--p); background: rgba(245,166,35,0.15);  color: var(--p); }
+    .cb-y.aktiv  { border-color: #FFD600; background: rgba(255,214,0,0.15);    color: #FFD600; }
+    .cb-c.aktiv  { border-color: #00E5FF; background: rgba(0,229,255,0.15);    color: #00E5FF; }
+    .cb-mg.aktiv { border-color: #FF40C8; background: rgba(255,64,200,0.15);   color: #FF40C8; }
+
+    .ul-btn.aktiv { border-color: #fff; background: rgba(255,255,255,0.12); color: #fff; }
+
+    /* ── Toggle-Buttons (Kasus) ── */
+    .toggle-btn { position: relative; font-size: 14px; }
+    .toggle-btn.aus {
+      opacity: 0.38;
+    }
+    .toggle-btn.aus:hover { opacity: 0.7; }
+
+    /* Kasus-Badge auf Toggle-Buttons */
+    .toggle-btn .kasus-badge {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      opacity: 0.7;
+      display: block;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    /* ── Schriftgrößen-Slider ── */
+    #slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    #slider-label {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    #fs-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.12);
+      outline: none;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    #fs-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--m);
+      box-shadow: 0 0 8px rgba(91,164,245,0.5);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    #fs-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    #fs-slider::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--m);
+      border: none;
+      cursor: pointer;
+    }
+    #fs-value {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-dim);
+      min-width: 26px;
+      text-align: right;
+    }
+
+    /* ── Freihand-Optionen ── */
+    #zeichen-opts {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .stift-farbe {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s;
+    }
+    .stift-farbe:hover { transform: scale(1.2); }
+    .stift-farbe.aktiv {
+      border-color: #fff;
+      transform: scale(1.15);
+      box-shadow: 0 0 8px rgba(255,255,255,0.3);
+    }
+    .stift-sz {
+      padding: 3px 6px;
+      border-radius: 6px;
+      border: 1.5px solid transparent;
+      background: rgba(255,255,255,0.05);
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.12s;
+    }
+    .stift-sz:hover  { background: rgba(255,255,255,0.1); color: #fff; }
+    .stift-sz.aktiv  { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; }
+
+    /* ═══════════════════════════════════════════════
+       HAUPT-LAYOUT
+    ═══════════════════════════════════════════════ */
+    #main {
+      position: fixed;
+      top: var(--toolbar-h);
+      inset: var(--toolbar-h) 0 0 0;
+      padding: var(--gap);
+    }
+
+    /* ═══════════════════════════════════════════════
+       GRID-TABELLE
+    ═══════════════════════════════════════════════ */
+    #tabelle {
+      display: grid;
+      gap: var(--gap);
+      height: 100%;
+      width: 100%;
+      transition: grid-template-columns 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ── Basis-Zelle ── */
+    .zelle {
+      position: relative;
+      border-radius: var(--r);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: opacity 0.25s, transform 0.25s;
+    }
+
+    /* ── Header-Ecke (leer) ── */
+    #h-ecke { background: transparent; border: none; }
+
+    /* ── Spalten-Header ── */
+    .kasus-header {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+    }
+    .kasus-header span {
+      font-size: clamp(14px, 2vw, 28px);
+      font-weight: 700;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* ── Genus-Header ── */
+    .genus-header {
+      border: 1px solid var(--border);
+      flex-direction: column;
+      gap: 2px;
+    }
+    .genus-header .gh-label {
+      font-size: clamp(18px, 2.5vw, 38px);
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .genus-header .gh-sub {
+      font-size: clamp(10px, 1.1vw, 16px);
+      font-weight: 500;
+      opacity: 0.6;
+      letter-spacing: 0.4px;
+    }
+    .row-m.genus-header { background: var(--m-bg); border-color: var(--m-border); }
+    .row-m.genus-header .gh-label { color: var(--m); }
+    .row-f.genus-header { background: var(--f-bg); border-color: var(--f-border); }
+    .row-f.genus-header .gh-label { color: var(--f); }
+    .row-n.genus-header { background: var(--n-bg); border-color: var(--n-border); }
+    .row-n.genus-header .gh-label { color: var(--n); }
+    .row-p.genus-header { background: var(--p-bg); border-color: var(--p-border); }
+    .row-p.genus-header .gh-label { color: var(--p); }
+
+    /* ── Datenzellen ── */
+    .daten {
+      background: var(--card);
+      border: 1px solid var(--border);
+      cursor: text;
+    }
+    .daten::before {
+      content: '';
+      position: absolute;
+      top: 10%; left: 0;
+      width: 3px;
+      height: 80%;
+      border-radius: 0 2px 2px 0;
+    }
+    .row-m.daten { background: var(--m-bg); border-color: var(--m-border); }
+    .row-m.daten::before { background: var(--m); }
+    .row-f.daten { background: var(--f-bg); border-color: var(--f-border); }
+    .row-f.daten::before { background: var(--f); }
+    .row-n.daten { background: var(--n-bg); border-color: var(--n-border); }
+    .row-n.daten::before { background: var(--n); }
+    .row-p.daten { background: var(--p-bg); border-color: var(--p-border); }
+    .row-p.daten::before { background: var(--p); }
+
+    .daten:focus-within {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px rgba(91,164,245,0.15), inset 0 0 20px rgba(91,164,245,0.04);
+    }
+    .row-f.daten:focus-within { border-color: rgba(245,113,122,0.5); box-shadow: 0 0 0 2px rgba(245,113,122,0.12); }
+    .row-n.daten:focus-within { border-color: rgba(78,201,148,0.5);  box-shadow: 0 0 0 2px rgba(78,201,148,0.12);  }
+    .row-p.daten:focus-within { border-color: rgba(245,166,35,0.5);  box-shadow: 0 0 0 2px rgba(245,166,35,0.12);  }
+
+    /* ── Editierbarer Inhalt ── */
+    .zell-inhalt {
+      position: relative;
+      width: calc(100% - 20px);
+      text-align: center;
+      outline: none;
+      caret-color: rgba(255,255,255,0.8);
+      font-weight: 700;
+      line-height: 1.15;
+      color: var(--text);
+      font-size: var(--cell-fs);
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .row-m .zell-inhalt { color: var(--m); }
+    .row-f .zell-inhalt { color: var(--f); }
+    .row-n .zell-inhalt { color: var(--n); }
+    .row-p .zell-inhalt { color: var(--p); }
+
+    .zell-inhalt span { font-size: inherit; }
+
+    .zell-inhalt:empty::before {
+      content: attr(data-placeholder);
+      color: rgba(255,255,255,0.12);
+      font-weight: 400;
+      font-size: 0.55em;
+      pointer-events: none;
+    }
+
+    /* Ausgeblendete Spalten */
+    .col-nom.versteckt,
+    .col-dat.versteckt,
+    .col-akk.versteckt,
+    .col-gen.versteckt { display: none; }
+
+    /* ═══════════════════════════════════════════════
+       CANVAS
+    ═══════════════════════════════════════════════ */
+    #zeichen-canvas {
+      position: fixed;
+      top: var(--toolbar-h);
+      left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 50;
+      touch-action: none;
+    }
+
+    /* ═══════════════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════════════ */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: rgba(19,22,42,0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 10px 22px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      z-index: 300;
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     TOOLBAR
+══════════════════════════════════════════════════════ -->
+<div id="toolbar">
+
+  <!-- Farb-Buttons (nur Punkte, kein Text) -->
+  <button class="btn farb-btn cb-w"  data-farbe="#ffffff" title="Weiß">
+    <span class="farbpunkt"></span>
+  </button>
+  <button class="btn farb-btn cb-y"  data-farbe="#FFD600" title="Gelb">
+    <span class="farbpunkt"></span>
+  </button>
+  <button class="btn farb-btn cb-c"  data-farbe="#00E5FF" title="Cyan">
+    <span class="farbpunkt"></span>
+  </button>
+  <button class="btn farb-btn cb-mg" data-farbe="#FF40C8" title="Magenta">
+    <span class="farbpunkt"></span>
+  </button>
+  <button class="btn farb-btn cb-r"  data-farbe="reset" title="Formatierung zurücksetzen">
+    ↺
+  </button>
+
+  <div class="sep"></div>
+
+  <button class="btn" id="btn-markierung" title="Markierten Text einfärben">🎨</button>
+  <button class="btn ul-btn" id="btn-underline" title="Markierten Text unterstreichen">U̲</button>
+
+  <div class="sep"></div>
+
+  <!-- Kasus-Toggle Buttons mit Emoji + Kurzbezeichnung -->
+  <button class="btn toggle-btn" id="toggle-nom" title="Nominativ ein-/ausblenden">
+    1️⃣<span class="kasus-badge">NOM</span>
+  </button>
+  <button class="btn toggle-btn" id="toggle-dat" title="Dativ ein-/ausblenden">
+    3️⃣<span class="kasus-badge">DAT</span>
+  </button>
+  <button class="btn toggle-btn" id="toggle-akk" title="Akkusativ ein-/ausblenden">
+    4️⃣<span class="kasus-badge">AKK</span>
+  </button>
+  <button class="btn toggle-btn" id="toggle-gen" title="Genitiv ein-/ausblenden">
+    2️⃣<span class="kasus-badge">GEN</span>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Schriftgröße -->
+  <div id="slider-wrap">
+    <span id="slider-label" title="Schriftgröße">🔡</span>
+    <input type="range" id="fs-slider" min="16" max="120" value="64" step="2">
+    <span id="fs-value">64</span>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Zellen leeren -->
+  <button class="btn danger" id="btn-leeren" title="Alle Zellen leeren">🗑️</button>
+
+  <!-- Freihand -->
+  <button class="btn" id="btn-freihand" title="Freihand-Zeichnen">✏️</button>
+
+  <!-- Freihand-Optionen -->
+  <div id="zeichen-opts">
+    <div class="stift-farbe aktiv" style="background:#F5717A" data-farbe="#F5717A"></div>
+    <div class="stift-farbe" style="background:#5BA4F5" data-farbe="#5BA4F5"></div>
+    <div class="stift-farbe" style="background:#4EC994" data-farbe="#4EC994"></div>
+    <div class="stift-farbe" style="background:#FFD600" data-farbe="#FFD600"></div>
+    <div class="stift-farbe" style="background:#ffffff" data-farbe="#ffffff"></div>
+    <span class="stift-sz aktiv" data-dicke="3">S</span>
+    <span class="stift-sz" data-dicke="7">M</span>
+    <span class="stift-sz" data-dicke="14">L</span>
+    <button class="btn danger" id="btn-canvas-loeschen" title="Zeichnung löschen">🗑</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Export -->
+  <button class="btn" id="btn-export" title="Als PNG exportieren">⬇️</button>
+
+</div><!-- /toolbar -->
+
+
+<!-- ══════════════════════════════════════════════════════
+     HAUPT-LAYOUT
+══════════════════════════════════════════════════════ -->
+<div id="main">
+  <div id="tabelle">
+
+    <!-- ── Zeile 0: Spalten-Header ── -->
+    <div class="zelle" id="h-ecke"></div>
+    <div class="zelle kasus-header col-nom" id="h-nom"><span>Nominativ</span></div>
+    <div class="zelle kasus-header col-gen" id="h-gen"><span>Genitiv</span></div>
+    <div class="zelle kasus-header col-dat" id="h-dat"><span>Dativ</span></div>
+    <div class="zelle kasus-header col-akk" id="h-akk"><span>Akkusativ</span></div>
+
+    <!-- ── Zeile 1: Mask ── -->
+    <div class="zelle genus-header row-m">
+      <span class="gh-label">Mask</span>
+      <span class="gh-sub">Maskulin</span>
+    </div>
+    <div class="zelle daten row-m col-nom">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="m" data-kasus="nom" data-placeholder="der …"></div>
+    </div>
+    <div class="zelle daten row-m col-gen">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="m" data-kasus="gen" data-placeholder="des …"></div>
+    </div>
+    <div class="zelle daten row-m col-dat">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="m" data-kasus="dat" data-placeholder="dem …"></div>
+    </div>
+    <div class="zelle daten row-m col-akk">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="m" data-kasus="akk" data-placeholder="den …"></div>
+    </div>
+
+    <!-- ── Zeile 2: Fem ── -->
+    <div class="zelle genus-header row-f">
+      <span class="gh-label">Fem</span>
+      <span class="gh-sub">Feminin</span>
+    </div>
+    <div class="zelle daten row-f col-nom">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="f" data-kasus="nom" data-placeholder="die …"></div>
+    </div>
+    <div class="zelle daten row-f col-gen">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="f" data-kasus="gen" data-placeholder="der …"></div>
+    </div>
+    <div class="zelle daten row-f col-dat">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="f" data-kasus="dat" data-placeholder="der …"></div>
+    </div>
+    <div class="zelle daten row-f col-akk">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="f" data-kasus="akk" data-placeholder="die …"></div>
+    </div>
+
+    <!-- ── Zeile 3: Neu ── -->
+    <div class="zelle genus-header row-n">
+      <span class="gh-label">Neu</span>
+      <span class="gh-sub">Neutrum</span>
+    </div>
+    <div class="zelle daten row-n col-nom">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="n" data-kasus="nom" data-placeholder="das …"></div>
+    </div>
+    <div class="zelle daten row-n col-gen">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="n" data-kasus="gen" data-placeholder="des …"></div>
+    </div>
+    <div class="zelle daten row-n col-dat">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="n" data-kasus="dat" data-placeholder="dem …"></div>
+    </div>
+    <div class="zelle daten row-n col-akk">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="n" data-kasus="akk" data-placeholder="das …"></div>
+    </div>
+
+    <!-- ── Zeile 4: Pl ── -->
+    <div class="zelle genus-header row-p">
+      <span class="gh-label">Pl</span>
+      <span class="gh-sub">Plural</span>
+    </div>
+    <div class="zelle daten row-p col-nom">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="p" data-kasus="nom" data-placeholder="die …"></div>
+    </div>
+    <div class="zelle daten row-p col-gen">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="p" data-kasus="gen" data-placeholder="der …"></div>
+    </div>
+    <div class="zelle daten row-p col-dat">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="p" data-kasus="dat" data-placeholder="den …"></div>
+    </div>
+    <div class="zelle daten row-p col-akk">
+      <div class="zell-inhalt" contenteditable="true" spellcheck="false"
+           data-genus="p" data-kasus="akk" data-placeholder="die …"></div>
+    </div>
+
+  </div><!-- /tabelle -->
+</div><!-- /main -->
+
+<!-- Freihand-Canvas -->
+<canvas id="zeichen-canvas"></canvas>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────────────────── */
+const S = {
+  aktiveFarbe:  null,
+  zeichenModus: false,
+  stiftFarbe:   '#F5717A',
+  stiftDicke:   3,
+  nomSichtbar:  true,
+  genSichtbar:  true,
+  datSichtbar:  true,
+  akkSichtbar:  true,
+  fontSize:     64,
+};
+
+/* ─────────────────────────────────────────────────────────
+   GRID-LAYOUT
+───────────────────────────────────────────────────────── */
+const tabelle = document.getElementById('tabelle');
+
+function aktualisiereGrid() {
+  const n = S.nomSichtbar;
+  const g = S.genSichtbar;
+  const d = S.datSichtbar;
+  const a = S.akkSichtbar;
+
+  // Anzahl sichtbarer Kasus-Spalten
+  const anzahl = [n, g, d, a].filter(Boolean).length;
+
+  // Genus-Spalte fix 100px, Rest gleichmäßig verteilt
+  const cols = ['100px'];
+  if (n) cols.push('1fr');
+  if (g) cols.push('1fr');
+  if (d) cols.push('1fr');
+  if (a) cols.push('1fr');
+
+  tabelle.style.gridTemplateColumns = cols.join(' ');
+  tabelle.style.gridTemplateRows = '52px repeat(4, 1fr)';
+
+  document.querySelectorAll('.col-nom').forEach(el =>
+    el.classList.toggle('versteckt', !n));
+  document.querySelectorAll('.col-gen').forEach(el =>
+    el.classList.toggle('versteckt', !g));
+  document.querySelectorAll('.col-dat').forEach(el =>
+    el.classList.toggle('versteckt', !d));
+  document.querySelectorAll('.col-akk').forEach(el =>
+    el.classList.toggle('versteckt', !a));
+}
+aktualisiereGrid();
+
+/* ─────────────────────────────────────────────────────────
+   SCHRIFTGRÖSSEN-SLIDER
+───────────────────────────────────────────────────────── */
+const slider   = document.getElementById('fs-slider');
+const fsValue  = document.getElementById('fs-value');
+
+function setzeFontSize(px) {
+  S.fontSize = px;
+  document.documentElement.style.setProperty('--cell-fs', px + 'px');
+  fsValue.textContent = px;
+}
+
+slider.addEventListener('input', () => setzeFontSize(parseInt(slider.value)));
+setzeFontSize(64);
+
+/* ─────────────────────────────────────────────────────────
+   CURSOR SPEICHERN / WIEDERHERSTELLEN
+───────────────────────────────────────────────────────── */
+function holeCursorPos(el) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return 0;
+  const r = sel.getRangeAt(0);
+  const pre = r.cloneRange();
+  pre.selectNodeContents(el);
+  pre.setEnd(r.endContainer, r.endOffset);
+  return pre.toString().length;
+}
+
+function setzeCursorPos(el, pos) {
+  const range = document.createRange();
+  const sel   = window.getSelection();
+  let offset  = 0, found = false;
+
+  function walk(n) {
+    if (found) return;
+    if (n.nodeType === 3) {
+      const end = offset + n.textContent.length;
+      if (pos <= end) {
+        range.setStart(n, pos - offset);
+        range.collapse(true);
+        found = true;
+      }
+      offset = end;
+    } else {
+      for (const c of n.childNodes) walk(c);
+    }
+  }
+  walk(el);
+  if (!found) { range.selectNodeContents(el); range.collapse(false); }
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+const GENUS_CSS = { m:'#5BA4F5', f:'#F5717A', n:'#4EC994', p:'#F5A623' };
+
+/* ─────────────────────────────────────────────────────────
+   INPUT-EVENTS
+───────────────────────────────────────────────────────── */
+document.querySelectorAll('.zell-inhalt').forEach(el => {
+  el.addEventListener('input', () => { /* Farbe kommt aus CSS */ });
+
+  el.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const visible = [...document.querySelectorAll('.zell-inhalt')]
+      .filter(x => !x.closest('.versteckt'));
+    const i    = visible.indexOf(el);
+    const next = visible[e.shiftKey ? i - 1 : i + 1];
+    if (next) {
+      next.focus();
+      const r = document.createRange(), s = window.getSelection();
+      r.selectNodeContents(next); r.collapse(false);
+      s.removeAllRanges(); s.addRange(r);
+    }
+  });
+});
+
+/* ─────────────────────────────────────────────────────────
+   FARB-BUTTONS (manuell)
+───────────────────────────────────────────────────────── */
+const COLOR_MAP = {
+  '#ffffff': { css: '#ffffff' },
+  '#FFD600': { css: '#FFD600' },
+  '#00E5FF': { css: '#00E5FF' },
+  '#FF40C8': { css: '#FF40C8' },
+  'reset':   { css: null },
+};
+
+document.querySelectorAll('.farb-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.farb-btn').forEach(b => b.classList.remove('aktiv'));
+    btn.classList.add('aktiv');
+    S.aktiveFarbe = btn.dataset.farbe;
+  });
+});
+
+/* ─────────────────────────────────────────────────────────
+   MARKIERUNG EINFÄRBEN
+───────────────────────────────────────────────────────── */
+function wrapSelektion(styleFn) {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { zeigToast('Zuerst Text markieren'); return false; }
+  const range = sel.getRangeAt(0);
+  try {
+    const span = document.createElement('span');
+    styleFn(span);
+    range.surroundContents(span);
+    sel.removeAllRanges();
+    return true;
+  } catch(_) {
+    zeigToast('Nur innerhalb einer Zelle markieren');
+    sel.removeAllRanges();
+    return false;
+  }
+}
+
+function resetSelektion() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { zeigToast('Zuerst Text markieren'); return; }
+  const range = sel.getRangeAt(0);
+  const frag  = range.extractContents();
+  const tmp   = document.createElement('div');
+  tmp.appendChild(frag);
+  tmp.querySelectorAll('span').forEach(s => {
+    s.style.color = '';
+    s.style.textDecoration = '';
+    if (!s.style.cssText.trim()) s.replaceWith(document.createTextNode(s.textContent));
+  });
+  const node = tmp.firstChild;
+  range.insertNode(node || document.createTextNode(''));
+  sel.removeAllRanges();
+}
+
+document.getElementById('btn-markierung').addEventListener('click', () => {
+  if (!S.aktiveFarbe) { zeigToast('Zuerst eine Farbe wählen'); return; }
+
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { zeigToast('Zuerst Text markieren'); return; }
+
+  if (S.aktiveFarbe === 'reset') {
+    resetSelektion();
+  } else {
+    const farbe = COLOR_MAP[S.aktiveFarbe]?.css ?? S.aktiveFarbe;
+    wrapSelektion(span => { span.style.color = farbe; });
+  }
+});
+
+/* Unterstreichen */
+document.getElementById('btn-underline').addEventListener('click', () => {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { zeigToast('Zuerst Text markieren'); return; }
+
+  const range      = sel.getRangeAt(0);
+  const container  = range.commonAncestorContainer;
+  const parentSpan = container.nodeType === 1 ? container : container.parentElement;
+  const istUnter   = parentSpan?.style?.textDecoration?.includes('underline');
+
+  if (istUnter) {
+    try {
+      parentSpan.style.textDecoration = '';
+      if (!parentSpan.style.cssText.trim()) {
+        parentSpan.replaceWith(document.createTextNode(parentSpan.textContent));
+      }
+      sel.removeAllRanges();
+    } catch(_) {}
+  } else {
+    wrapSelektion(span => {
+      span.style.textDecoration = 'underline';
+      span.style.textUnderlineOffset = '4px';
+    });
+  }
+});
+
+/* ─────────────────────────────────────────────────────────
+   KASUS-TOGGLE (Nominativ, Genitiv, Dativ, Akkusativ)
+───────────────────────────────────────────────────────── */
+document.getElementById('toggle-nom').addEventListener('click', function() {
+  S.nomSichtbar = !S.nomSichtbar;
+  this.classList.toggle('aus', !S.nomSichtbar);
+  aktualisiereGrid();
+  zeigToast(S.nomSichtbar ? 'Nominativ eingeblendet' : 'Nominativ ausgeblendet');
+});
+
+document.getElementById('toggle-gen').addEventListener('click', function() {
+  S.genSichtbar = !S.genSichtbar;
+  this.classList.toggle('aus', !S.genSichtbar);
+  aktualisiereGrid();
+  zeigToast(S.genSichtbar ? 'Genitiv eingeblendet' : 'Genitiv ausgeblendet');
+});
+
+document.getElementById('toggle-dat').addEventListener('click', function() {
+  S.datSichtbar = !S.datSichtbar;
+  this.classList.toggle('aus', !S.datSichtbar);
+  aktualisiereGrid();
+  zeigToast(S.datSichtbar ? 'Dativ eingeblendet' : 'Dativ ausgeblendet');
+});
+
+document.getElementById('toggle-akk').addEventListener('click', function() {
+  S.akkSichtbar = !S.akkSichtbar;
+  this.classList.toggle('aus', !S.akkSichtbar);
+  aktualisiereGrid();
+  zeigToast(S.akkSichtbar ? 'Akkusativ eingeblendet' : 'Akkusativ ausgeblendet');
+});
+
+/* ─────────────────────────────────────────────────────────
+   ALLE LEEREN
+───────────────────────────────────────────────────────── */
+document.getElementById('btn-leeren').addEventListener('click', () => {
+  if (!confirm('Alle Zellen leeren?')) return;
+  document.querySelectorAll('.zell-inhalt').forEach(el => el.innerHTML = '');
+  zeigToast('Alle Zellen geleert');
+});
+
+/* ─────────────────────────────────────────────────────────
+   CANVAS / FREIHAND
+───────────────────────────────────────────────────────── */
+const canvas = document.getElementById('zeichen-canvas');
+const ctx    = canvas.getContext('2d');
+
+function passeCanvas() {
+  const h     = document.getElementById('toolbar').offsetHeight;
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight - h;
+  canvas.style.top = h + 'px';
+}
+passeCanvas();
+window.addEventListener('resize', () => { passeCanvas(); aktualisiereGrid(); });
+
+let amZeichnen = false, lx = 0, ly = 0;
+
+function startZ(x, y) { amZeichnen = true; lx = x; ly = y; }
+function weiterZ(x, y) {
+  if (!amZeichnen) return;
+  ctx.beginPath();
+  ctx.moveTo(lx, ly); ctx.lineTo(x, y);
+  ctx.strokeStyle = S.stiftFarbe;
+  ctx.lineWidth   = S.stiftDicke;
+  ctx.lineCap = ctx.lineJoin = 'round';
+  ctx.stroke();
+  lx = x; ly = y;
+}
+function stopZ() { amZeichnen = false; }
+
+canvas.addEventListener('mousedown',  e => startZ(e.offsetX, e.offsetY));
+canvas.addEventListener('mousemove',  e => weiterZ(e.offsetX, e.offsetY));
+canvas.addEventListener('mouseup',    stopZ);
+canvas.addEventListener('mouseleave', stopZ);
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0], r = canvas.getBoundingClientRect();
+  startZ(t.clientX - r.left, t.clientY - r.top);
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0], r = canvas.getBoundingClientRect();
+  weiterZ(t.clientX - r.left, t.clientY - r.top);
+}, { passive: false });
+canvas.addEventListener('touchend',   stopZ);
+canvas.addEventListener('touchcancel',stopZ);
+
+const btnFreihand = document.getElementById('btn-freihand');
+const zeichenOpts = document.getElementById('zeichen-opts');
+
+btnFreihand.addEventListener('click', () => {
+  S.zeichenModus = !S.zeichenModus;
+  canvas.style.pointerEvents = S.zeichenModus ? 'all' : 'none';
+  btnFreihand.classList.toggle('on', S.zeichenModus);
+  zeichenOpts.style.display = S.zeichenModus ? 'flex' : 'none';
+  zeigToast(S.zeichenModus ? 'Freihand aktiv' : 'Freihand aus');
+});
+
+document.querySelectorAll('.stift-farbe').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.stift-farbe').forEach(e => e.classList.remove('aktiv'));
+    el.classList.add('aktiv');
+    S.stiftFarbe = el.dataset.farbe;
+  });
+});
+
+document.querySelectorAll('.stift-sz').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.stift-sz').forEach(e => e.classList.remove('aktiv'));
+    el.classList.add('aktiv');
+    S.stiftDicke = +el.dataset.dicke;
+  });
+});
+
+document.getElementById('btn-canvas-loeschen').addEventListener('click', () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  zeigToast('Zeichnung gelöscht');
+});
+
+/* ─────────────────────────────────────────────────────────
+   PNG EXPORT
+───────────────────────────────────────────────────────── */
+document.getElementById('btn-export').addEventListener('click', async () => {
+  zeigToast('Export wird erstellt …');
+  canvas.style.display = 'none';
+
+  try {
+    const tc = await html2canvas(tabelle, {
+      backgroundColor: '#0C0E16',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+
+    const fin   = document.createElement('canvas');
+    fin.width   = tc.width;
+    fin.height  = tc.height;
+    const fc    = fin.getContext('2d');
+    fc.drawImage(tc, 0, 0);
+
+    const tr = tabelle.getBoundingClientRect();
+    fc.drawImage(canvas,
+      tr.left, 0, tr.width, canvas.height,
+      0, 0, fin.width, fin.height);
+
+    const a  = document.createElement('a');
+    a.download = `artikel-trainer-${Date.now()}.png`;
+    a.href     = fin.toDataURL('image/png');
+    a.click();
+    zeigToast('PNG gespeichert!');
+  } catch(e) {
+    zeigToast('Fehler: ' + e.message);
+  } finally {
+    canvas.style.display = 'block';
+  }
+});
+
+/* ─────────────────────────────────────────────────────────
+   TOAST
+───────────────────────────────────────────────────────── */
+let toastT = null;
+function zeigToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>
