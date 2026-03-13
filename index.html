@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Grammatik-Trainer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════════ */
+    :root {
+      --m:   #5BA4F5;
+      --f:   #F5717A;
+      --n:   #4EC994;
+      --p:   #F5A623;
+
+      --m-bg: rgba(91,164,245,0.09);
+      --f-bg: rgba(245,113,122,0.09);
+      --n-bg: rgba(78,201,148,0.09);
+      --p-bg: rgba(245,166,35,0.09);
+
+      --m-border: rgba(91,164,245,0.45);
+      --f-border: rgba(245,113,122,0.45);
+      --n-border: rgba(78,201,148,0.45);
+      --p-border: rgba(245,166,35,0.45);
+
+      /* Verb-Zeilen-Farben */
+      --v1:  #A78BFA; /* ich    – lila  */
+      --v2:  #34D399; /* du     – grün  */
+      --v3:  #F472B6; /* er/sie – pink  */
+      --v4:  #60A5FA; /* wir    – blau  */
+      --v5:  #FBBF24; /* ihr    – gold  */
+      --v6:  #F87171; /* sie/Sie– rot   */
+
+      --v1-bg: rgba(167,139,250,0.09);
+      --v2-bg: rgba(52,211,153,0.09);
+      --v3-bg: rgba(244,114,182,0.09);
+      --v4-bg: rgba(96,165,250,0.09);
+      --v5-bg: rgba(251,191,36,0.09);
+      --v6-bg: rgba(248,113,113,0.09);
+
+      --v1-border: rgba(167,139,250,0.45);
+      --v2-border: rgba(52,211,153,0.45);
+      --v3-border: rgba(244,114,182,0.45);
+      --v4-border: rgba(96,165,250,0.45);
+      --v5-border: rgba(251,191,36,0.45);
+      --v6-border: rgba(248,113,113,0.45);
+
+      --bg:          #0C0E16;
+      --surface:     #13162A;
+      --card:        #161929;
+      --border:      rgba(255,255,255,0.07);
+      --border-focus:rgba(91,164,245,0.5);
+      --text:        #E8ECF8;
+      --text-muted:  #5A6080;
+      --text-dim:    #8A90B4;
+
+      --toolbar-h: 56px;
+      --gap: 8px;
+      --r: 12px;
+      --cell-fs: 80px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══════════════════════════════════════════════
+       TOOLBAR
+    ═══════════════════════════════════════════════ */
+    #toolbar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: var(--toolbar-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 8px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    #toolbar::-webkit-scrollbar { display: none; }
+
+    .sep {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      flex-shrink: 0;
+      margin: 0 3px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 6px 9px;
+      border-radius: 8px;
+      border: 1.5px solid transparent;
+      background: rgba(255,255,255,0.05);
+      color: var(--text-dim);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+      user-select: none;
+      min-width: 32px;
+      height: 36px;
+    }
+    .btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      transform: translateY(-1px);
+    }
+    .btn.on {
+      background: rgba(91,164,245,0.15);
+      border-color: rgba(91,164,245,0.4);
+      color: var(--m);
+      box-shadow: 0 0 12px rgba(91,164,245,0.12);
+    }
+    .btn.danger { color: #F5717A; }
+    .btn.danger:hover { background: rgba(245,113,122,0.12); }
+
+    /* ── Tab-Buttons ── */
+    .tab-btn {
+      font-size: 13px;
+      padding: 5px 12px;
+      height: 32px;
+      border-radius: 20px;
+    }
+    .tab-btn.aktiv {
+      background: rgba(91,164,245,0.18);
+      border-color: rgba(91,164,245,0.5);
+      color: var(--m);
+    }
+
+    /* ── Farb-Buttons ── */
+    .farbpunkt {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .cb-w .farbpunkt  { background: #fff; box-shadow: 0 0 0 1px #555; }
+    .cb-y .farbpunkt  { background: #FFD600; }
+    .cb-c .farbpunkt  { background: #00E5FF; }
+    .cb-mg .farbpunkt { background: #FF40C8; }
+    .farb-btn { padding: 6px 7px; }
+
+    .farb-btn.aktiv     { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; }
+    .cb-y.aktiv  { border-color: #FFD600; background: rgba(255,214,0,0.15);    color: #FFD600; }
+    .cb-c.aktiv  { border-color: #00E5FF; background: rgba(0,229,255,0.15);    color: #00E5FF; }
+    .cb-mg.aktiv { border-color: #FF40C8; background: rgba(255,64,200,0.15);   color: #FF40C8; }
+
+    .ul-btn.aktiv { border-color: #fff; background: rgba(255,255,255,0.12); color: #fff; }
+
+    /* ── Toggle-Buttons ── */
+    .toggle-btn { position: relative; font-size: 13px; flex-direction: column; gap: 0; height: 36px; }
+    .toggle-btn.aus { opacity: 0.35; }
+    .toggle-btn.aus:hover { opacity: 0.7; }
+    .toggle-btn .badge {
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      opacity: 0.7;
+      display: block;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    /* ── Slider ── */
+    #slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    #fs-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px; height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.12);
+      outline: none;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    #fs-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--m);
+      box-shadow: 0 0 8px rgba(91,164,245,0.5);
+      cursor: pointer;
+    }
+    #fs-slider::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--m);
+      border: none;
+      cursor: pointer;
+    }
+    #fs-value {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-dim);
+      min-width: 26px;
+      text-align: right;
+    }
+
+    /* ── Freihand ── */
+    #zeichen-opts {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .stift-farbe {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .stift-farbe:hover { transform: scale(1.2); }
+    .stift-farbe.aktiv { border-color: #fff; transform: scale(1.15); box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+    .stift-sz {
+      padding: 3px 6px;
+      border-radius: 6px;
+      border: 1.5px solid transparent;
+      background: rgba(255,255,255,0.05);
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.12s;
+    }
+    .stift-sz:hover  { background: rgba(255,255,255,0.1); color: #fff; }
+    .stift-sz.aktiv  { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; }
+
+    /* ═══════════════════════════════════════════════
+       TOGGLE-GRUPPEN IN TOOLBAR
+       (kontextabhängig je nach aktivem Tab)
+    ═══════════════════════════════════════════════ */
+    .toggles-dek,
+    .toggles-verb { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+
+    /* ═══════════════════════════════════════════════
+       HAUPT-LAYOUT
+    ═══════════════════════════════════════════════ */
+    #main {
+      position: fixed;
+      top: var(--toolbar-h);
+      inset: var(--toolbar-h) 0 0 0;
+      padding: var(--gap);
+    }
+
+    /* ── Ansichten ── */
+    .ansicht { display: none; height: 100%; width: 100%; }
+    .ansicht.aktiv { display: block; }
+
+    /* ═══════════════════════════════════════════════
+       GRID-TABELLE (gemeinsame Stile)
+    ═══════════════════════════════════════════════ */
+    .tabelle {
+      display: grid;
+      gap: var(--gap);
+      height: 100%;
+      width: 100%;
+      transition: grid-template-columns 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .zelle {
+      position: relative;
+      border-radius: var(--r);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: opacity 0.25s;
+    }
+
+    #h-ecke, #vh-ecke { background: transparent; border: none; }
+
+    .kasus-header, .verb-col-header {
+      background: rgba(255,255,255,0.04);
+      border: 2px solid rgba(255,255,255,0.15);
+    }
+    .kasus-header span {
+      font-size: clamp(16px, 2.2vw, 36px);
+      font-weight: 800;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Editierbare Verb-Spalten-Header */
+    .verb-col-header .col-header-inhalt {
+      font-size: clamp(16px, 2.2vw, 36px);
+      font-weight: 800;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      outline: none;
+      text-align: center;
+      width: calc(100% - 16px);
+      caret-color: rgba(255,255,255,0.8);
+    }
+    .verb-col-header .col-header-inhalt:empty::before {
+      content: attr(data-placeholder);
+      color: rgba(255,255,255,0.2);
+      font-weight: 400;
+      font-size: 0.8em;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    /* ── Genus-Header (Deklination) ── */
+    .genus-header {
+      border: 2px solid var(--border);
+      flex-direction: column;
+      gap: 2px;
+    }
+    .genus-header .gh-label {
+      font-size: clamp(22px, 3vw, 46px);
+      font-weight: 900;
+    }
+    .genus-header .gh-sub {
+      font-size: clamp(11px, 1.2vw, 18px);
+      font-weight: 600;
+      opacity: 0.65;
+    }
+    .row-m.genus-header { background: var(--m-bg); border-color: var(--m); }
+    .row-m.genus-header .gh-label { color: var(--m); }
+    .row-f.genus-header { background: var(--f-bg); border-color: var(--f); }
+    .row-f.genus-header .gh-label { color: var(--f); }
+    .row-n.genus-header { background: var(--n-bg); border-color: var(--n); }
+    .row-n.genus-header .gh-label { color: var(--n); }
+    .row-p.genus-header { background: var(--p-bg); border-color: var(--p); }
+    .row-p.genus-header .gh-label { color: var(--p); }
+
+    /* ── Person-Header (Konjugation) ── */
+    .person-header {
+      border: 2px solid var(--border);
+      flex-direction: column;
+      gap: 1px;
+    }
+    .person-header .ph-label {
+      font-size: clamp(18px, 2.6vw, 42px);
+      font-weight: 900;
+      letter-spacing: 0.3px;
+      text-align: center;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.1;
+    }
+    .person-header .ph-sub {
+      font-size: clamp(10px, 1.1vw, 16px);
+      font-weight: 600;
+      opacity: 0.6;
+    }
+
+    .row-v1.person-header { background: var(--v1-bg); border-color: var(--v1); }
+    .row-v1.person-header .ph-label { color: var(--v1); }
+    .row-v2.person-header { background: var(--v2-bg); border-color: var(--v2); }
+    .row-v2.person-header .ph-label { color: var(--v2); }
+    .row-v3.person-header {
+      background: rgba(244,114,182,0.22);
+      border-color: var(--v3);
+      border-width: 3px;
+      box-shadow: 0 0 18px rgba(244,114,182,0.45), inset 0 0 12px rgba(244,114,182,0.08);
+    }
+    .row-v3.person-header .ph-label {
+      color: #fff;
+      text-shadow: 0 0 14px rgba(244,114,182,0.9), 0 0 28px rgba(244,114,182,0.5);
+      font-size: clamp(18px, 2.6vw, 42px);
+    }
+    .row-v4.person-header { background: var(--v4-bg); border-color: var(--v4); }
+    .row-v4.person-header .ph-label { color: var(--v4); }
+    .row-v5.person-header { background: var(--v5-bg); border-color: var(--v5); }
+    .row-v5.person-header .ph-label { color: var(--v5); }
+    .row-v6.person-header { background: var(--v6-bg); border-color: var(--v6); }
+    .row-v6.person-header .ph-label { color: var(--v6); }
+
+    /* ── Datenzellen (gemeinsam) ── */
+    .daten {
+      background: var(--card);
+      border: 2px solid var(--border);
+      cursor: text;
+    }
+    .daten::before {
+      content: '';
+      position: absolute;
+      top: 8%; left: 0;
+      width: 5px; height: 84%;
+      border-radius: 0 3px 3px 0;
+    }
+
+    /* Deklinationszellen */
+    .row-m.daten { background: var(--m-bg); border-color: var(--m); }
+    .row-m.daten::before { background: var(--m); }
+    .row-f.daten { background: var(--f-bg); border-color: var(--f); }
+    .row-f.daten::before { background: var(--f); }
+    .row-n.daten { background: var(--n-bg); border-color: var(--n); }
+    .row-n.daten::before { background: var(--n); }
+    .row-p.daten { background: var(--p-bg); border-color: var(--p); }
+    .row-p.daten::before { background: var(--p); }
+
+    /* Konjugationszellen */
+    .row-v1.daten { background: var(--v1-bg); border-color: var(--v1); }
+    .row-v1.daten::before { background: var(--v1); }
+    .row-v2.daten { background: var(--v2-bg); border-color: var(--v2); }
+    .row-v2.daten::before { background: var(--v2); }
+    .row-v3.daten {
+      background: rgba(244,114,182,0.16);
+      border-color: var(--v3);
+      border-width: 3px;
+      box-shadow: 0 0 12px rgba(244,114,182,0.3);
+    }
+    .row-v3.daten::before { background: var(--v3); width: 7px; }
+    .row-v4.daten { background: var(--v4-bg); border-color: var(--v4); }
+    .row-v4.daten::before { background: var(--v4); }
+    .row-v5.daten { background: var(--v5-bg); border-color: var(--v5); }
+    .row-v5.daten::before { background: var(--v5); }
+    .row-v6.daten { background: var(--v6-bg); border-color: var(--v6); }
+    .row-v6.daten::before { background: var(--v6); }
+
+    .daten:focus-within {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px rgba(91,164,245,0.15);
+    }
+
+    /* ── Editierbarer Inhalt ── */
+    .zell-inhalt {
+      position: relative;
+      width: calc(100% - 16px);
+      text-align: center;
+      outline: none;
+      caret-color: rgba(255,255,255,0.8);
+      font-weight: 700;
+      line-height: 1.15;
+      font-size: var(--cell-fs);
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .row-m .zell-inhalt { color: var(--m); }
+    .row-f .zell-inhalt { color: var(--f); }
+    .row-n .zell-inhalt { color: var(--n); }
+    .row-p .zell-inhalt { color: var(--p); }
+    .row-v1 .zell-inhalt { color: var(--v1); }
+    .row-v2 .zell-inhalt { color: var(--v2); }
+    .row-v3 .zell-inhalt { color: var(--v3); }
+    .row-v4 .zell-inhalt { color: var(--v4); }
+    .row-v5 .zell-inhalt { color: var(--v5); }
+    .row-v6 .zell-inhalt { color: var(--v6); }
+
+    .zell-inhalt span { font-size: inherit; }
+    .zell-inhalt:empty::before {
+      content: attr(data-placeholder);
+      color: rgba(255,255,255,0.12);
+      font-weight: 400;
+      font-size: 0.55em;
+      pointer-events: none;
+    }
+
+    /* ── Versteckte Spalten: NICHT display:none (würde Grid-Positionen verschieben!)
+       Stattdessen: Spalten-Breite wird per JS auf 0px gesetzt, Zellen unsichtbar ── */
+    .col-nom.versteckt,
+    .col-gen.versteckt,
+    .col-dat.versteckt,
+    .col-akk.versteckt,
+    .col-v1.versteckt,
+    .col-v2.versteckt,
+    .col-v3.versteckt,
+    .col-v4.versteckt {
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      padding: 0;
+      border-width: 0;
+      /* Breite kommt vom Grid-Track (wird per JS auf 0px gesetzt) */
+    }
+
+    /* Person-Zeilen verstecken: NICHT display:none (verschiebt Grid-Positionen!)
+       Zeilenhöhe wird per JS auf 0px gesetzt, Zellen werden unsichtbar */
+    .zeile-v1.versteckt,
+    .zeile-v2.versteckt,
+    .zeile-v3.versteckt,
+    .zeile-v4.versteckt,
+    .zeile-v5.versteckt,
+    .zeile-v6.versteckt {
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      padding: 0;
+      border-width: 0;
+    }
+
+    /* ── Verb-Layout: zwei Hälften ── */
+    #verb-layout {
+      display: flex;
+      height: 100%;
+      gap: var(--gap);
+    }
+    #verb-links {
+      display: grid;
+      flex-shrink: 0;
+      width: 150px;
+      gap: var(--gap);
+      /* grid-template-rows wird per JS gesetzt */
+    }
+    #verb-rechts {
+      flex: 1;
+      display: grid;
+      min-width: 0;
+      gap: var(--gap);
+      /* grid-template-columns + rows per JS */
+    }
+    .verb-person-leer {
+      background: transparent;
+      border: none;
+    }
+
+    /* ═══════════════════════════════════════════════
+       FARB-PICKER POPUP (Pronomen)
+    ═══════════════════════════════════════════════ */
+    #farb-popup {
+      position: fixed;
+      z-index: 200;
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      padding: 10px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      min-width: 160px;
+    }
+    #farb-popup.sichtbar { display: flex; }
+    #farb-popup .popup-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-align: center;
+    }
+    #farb-popup .farb-reihe {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #farb-popup .fp-punkt {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s;
+      flex-shrink: 0;
+    }
+    #farb-popup .fp-punkt:hover { transform: scale(1.2); }
+    #farb-popup .fp-punkt.aktiv { border-color: #fff; transform: scale(1.15); box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+    #farb-popup .fp-reset {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-align: center;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    #farb-popup .fp-reset:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+
+    /* ═══════════════════════════════════════════════
+       CANVAS
+    ═══════════════════════════════════════════════ */
+    #zeichen-canvas {
+      position: fixed;
+      top: var(--toolbar-h);
+      left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 50;
+      touch-action: none;
+    }
+
+    /* ═══════════════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════════════ */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: rgba(19,22,42,0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 10px 22px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 300;
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     TOOLBAR
+══════════════════════════════════════════════════════ -->
+<div id="toolbar">
+
+  <!-- Tab-Umschalter -->
+  <button class="btn tab-btn aktiv" id="tab-dek" title="Deklination">📋 Dek</button>
+  <button class="btn tab-btn"       id="tab-verb" title="Konjugation">🔤 Verb</button>
+
+  <div class="sep"></div>
+
+  <!-- Farb-Buttons -->
+  <button class="btn farb-btn cb-w"  data-farbe="#ffffff" title="Weiß"><span class="farbpunkt"></span></button>
+  <button class="btn farb-btn cb-y"  data-farbe="#FFD600" title="Gelb"><span class="farbpunkt"></span></button>
+  <button class="btn farb-btn cb-c"  data-farbe="#00E5FF" title="Cyan"><span class="farbpunkt"></span></button>
+  <button class="btn farb-btn cb-mg" data-farbe="#FF40C8" title="Magenta"><span class="farbpunkt"></span></button>
+  <button class="btn farb-btn cb-r"  data-farbe="reset" title="Format zurücksetzen">↺</button>
+
+  <div class="sep"></div>
+
+  <button class="btn" id="btn-markierung" title="Markierten Text einfärben">🎨</button>
+  <button class="btn ul-btn" id="btn-underline" title="Unterstreichen">U̲</button>
+
+  <div class="sep"></div>
+
+  <!-- Deklinations-Toggles -->
+  <div class="toggles-dek" id="toggles-dek">
+    <button class="btn toggle-btn" id="toggle-nom" title="Nominativ">1️⃣<span class="badge">NOM</span></button>
+    <button class="btn toggle-btn" id="toggle-gen" title="Genitiv">2️⃣<span class="badge">GEN</span></button>
+    <button class="btn toggle-btn" id="toggle-dat" title="Dativ">3️⃣<span class="badge">DAT</span></button>
+    <button class="btn toggle-btn" id="toggle-akk" title="Akkusativ">4️⃣<span class="badge">AKK</span></button>
+  </div>
+
+  <!-- Verb-Toggles (Personen + Spalten) -->
+  <div class="toggles-verb" id="toggles-verb" style="display:none">
+    <!-- Personen-Toggles (er/sie/es immer sichtbar → kein Toggle) -->
+    <button class="btn toggle-btn" id="toggle-v1" title="ich">👤<span class="badge">ich</span></button>
+    <button class="btn toggle-btn" id="toggle-v2" title="du">👤<span class="badge">du</span></button>
+    <button class="btn toggle-btn" id="toggle-v4" title="wir">👥<span class="badge">wir</span></button>
+    <button class="btn toggle-btn" id="toggle-v5" title="ihr">👥<span class="badge">ihr</span></button>
+    <button class="btn toggle-btn" id="toggle-v6" title="sie/Sie">👥<span class="badge">sie</span></button>
+    <div class="sep"></div>
+    <!-- Verb-Spalten-Toggles -->
+    <button class="btn toggle-btn" id="toggle-vc1" title="Spalte 1">①<span class="badge">SP1</span></button>
+    <button class="btn toggle-btn" id="toggle-vc2" title="Spalte 2">②<span class="badge">SP2</span></button>
+    <button class="btn toggle-btn" id="toggle-vc3" title="Spalte 3">③<span class="badge">SP3</span></button>
+    <button class="btn toggle-btn" id="toggle-vc4" title="Spalte 4">④<span class="badge">SP4</span></button>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Slider -->
+  <div id="slider-wrap">
+    <span title="Schriftgröße" style="font-size:15px">🔡</span>
+    <input type="range" id="fs-slider" min="16" max="120" value="80" step="2">
+    <span id="fs-value">80</span>
+  </div>
+
+  <div class="sep"></div>
+
+  <button class="btn danger" id="btn-leeren" title="Alle Zellen leeren">🗑️</button>
+  <button class="btn" id="btn-freihand" title="Freihand-Zeichnen">✏️</button>
+
+  <div id="zeichen-opts">
+    <div class="stift-farbe aktiv" style="background:#F5717A" data-farbe="#F5717A"></div>
+    <div class="stift-farbe" style="background:#5BA4F5" data-farbe="#5BA4F5"></div>
+    <div class="stift-farbe" style="background:#4EC994" data-farbe="#4EC994"></div>
+    <div class="stift-farbe" style="background:#FFD600" data-farbe="#FFD600"></div>
+    <div class="stift-farbe" style="background:#ffffff" data-farbe="#ffffff"></div>
+    <span class="stift-sz aktiv" data-dicke="3">S</span>
+    <span class="stift-sz" data-dicke="7">M</span>
+    <span class="stift-sz" data-dicke="14">L</span>
+    <button class="btn danger" id="btn-canvas-loeschen" title="Zeichnung löschen">🗑</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <button class="btn" id="btn-export" title="Als PNG exportieren">⬇️</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     HAUPT-LAYOUT
+══════════════════════════════════════════════════════ -->
+<div id="main">
+
+  <!-- ══ ANSICHT: DEKLINATION ══ -->
+  <div class="ansicht aktiv" id="ansicht-dek">
+    <div class="tabelle" id="tabelle-dek">
+
+      <div class="zelle" id="h-ecke"></div>
+      <div class="zelle kasus-header col-nom" id="h-nom"><span>Nominativ</span></div>
+      <div class="zelle kasus-header col-gen" id="h-gen"><span>Genitiv</span></div>
+      <div class="zelle kasus-header col-dat" id="h-dat"><span>Dativ</span></div>
+      <div class="zelle kasus-header col-akk" id="h-akk"><span>Akkusativ</span></div>
+
+      <!-- Mask -->
+      <div class="zelle genus-header row-m"><span class="gh-label">Mask</span><span class="gh-sub">Maskulin</span></div>
+      <div class="zelle daten row-m col-nom"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="der …"></div></div>
+      <div class="zelle daten row-m col-gen"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="des …"></div></div>
+      <div class="zelle daten row-m col-dat"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="dem …"></div></div>
+      <div class="zelle daten row-m col-akk"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="den …"></div></div>
+
+      <!-- Fem -->
+      <div class="zelle genus-header row-f"><span class="gh-label">Fem</span><span class="gh-sub">Feminin</span></div>
+      <div class="zelle daten row-f col-nom"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="die …"></div></div>
+      <div class="zelle daten row-f col-gen"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="der …"></div></div>
+      <div class="zelle daten row-f col-dat"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="der …"></div></div>
+      <div class="zelle daten row-f col-akk"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="die …"></div></div>
+
+      <!-- Neu -->
+      <div class="zelle genus-header row-n"><span class="gh-label">Neu</span><span class="gh-sub">Neutrum</span></div>
+      <div class="zelle daten row-n col-nom"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="das …"></div></div>
+      <div class="zelle daten row-n col-gen"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="des …"></div></div>
+      <div class="zelle daten row-n col-dat"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="dem …"></div></div>
+      <div class="zelle daten row-n col-akk"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="das …"></div></div>
+
+      <!-- Pl -->
+      <div class="zelle genus-header row-p"><span class="gh-label">Pl</span><span class="gh-sub">Plural</span></div>
+      <div class="zelle daten row-p col-nom"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="die …"></div></div>
+      <div class="zelle daten row-p col-gen"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="der …"></div></div>
+      <div class="zelle daten row-p col-dat"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="den …"></div></div>
+      <div class="zelle daten row-p col-akk"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="die …"></div></div>
+
+    </div>
+  </div><!-- /ansicht-dek -->
+
+
+  <!-- ══ ANSICHT: KONJUGATION ══ -->
+  <div class="ansicht" id="ansicht-verb">
+    <div id="verb-layout">
+      <!-- LINKE SPALTE: Pronomen (immer sichtbar außer wenn Person ausgeblendet) -->
+      <div id="verb-links">
+        <div class="zelle verb-person-leer"></div>
+        <div class="zelle person-header row-v1 zeile-v1"><span class="ph-label">ich</span></div>
+        <div class="zelle person-header row-v2 zeile-v2"><span class="ph-label">du</span></div>
+        <div class="zelle person-header row-v3 zeile-v3"><span class="ph-label">er/<wbr>sie/<wbr>es</span></div>
+        <div class="zelle person-header row-v4 zeile-v4"><span class="ph-label">wir</span></div>
+        <div class="zelle person-header row-v5 zeile-v5"><span class="ph-label">ihr</span></div>
+        <div class="zelle person-header row-v6 zeile-v6"><span class="ph-label">sie/<wbr>Sie</span></div>
+      </div>
+      <!-- RECHTE SEITE: Spalten-Header + Datenzellen -->
+      <div id="verb-rechts">
+        <!-- Header-Zeile -->
+        <div class="zelle verb-col-header col-v1"><div class="col-header-inhalt" contenteditable="true" spellcheck="false" data-placeholder="Spalte 1 …"></div></div>
+        <div class="zelle verb-col-header col-v2"><div class="col-header-inhalt" contenteditable="true" spellcheck="false" data-placeholder="Spalte 2 …"></div></div>
+        <div class="zelle verb-col-header col-v3"><div class="col-header-inhalt" contenteditable="true" spellcheck="false" data-placeholder="Spalte 3 …"></div></div>
+        <div class="zelle verb-col-header col-v4"><div class="col-header-inhalt" contenteditable="true" spellcheck="false" data-placeholder="Spalte 4 …"></div></div>
+        <!-- ich -->
+        <div class="zelle daten row-v1 zeile-v1 col-v1"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v1 zeile-v1 col-v2"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v1 zeile-v1 col-v3"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v1 zeile-v1 col-v4"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <!-- du -->
+        <div class="zelle daten row-v2 zeile-v2 col-v1"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v2 zeile-v2 col-v2"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v2 zeile-v2 col-v3"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v2 zeile-v2 col-v4"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <!-- er/sie/es -->
+        <div class="zelle daten row-v3 zeile-v3 col-v1"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v3 zeile-v3 col-v2"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v3 zeile-v3 col-v3"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v3 zeile-v3 col-v4"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <!-- wir -->
+        <div class="zelle daten row-v4 zeile-v4 col-v1"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v4 zeile-v4 col-v2"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v4 zeile-v4 col-v3"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v4 zeile-v4 col-v4"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <!-- ihr -->
+        <div class="zelle daten row-v5 zeile-v5 col-v1"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v5 zeile-v5 col-v2"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v5 zeile-v5 col-v3"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v5 zeile-v5 col-v4"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <!-- sie/Sie -->
+        <div class="zelle daten row-v6 zeile-v6 col-v1"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v6 zeile-v6 col-v2"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v6 zeile-v6 col-v3"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+        <div class="zelle daten row-v6 zeile-v6 col-v4"><div class="zell-inhalt" contenteditable="true" spellcheck="false" data-placeholder="…"></div></div>
+      </div>
+    </div>
+  </div><!-- /ansicht-verb -->
+
+</div><!-- /main -->
+
+<canvas id="zeichen-canvas"></canvas>
+<div id="toast"></div>
+
+<!-- Farb-Picker Popup für Pronomen-Zeilen -->
+<div id="farb-popup">
+  <div class="popup-title" id="farb-popup-titel">Farbe: ich</div>
+  <div class="farb-reihe" id="farb-popup-reihe"></div>
+  <div class="fp-reset" id="farb-popup-reset">↺ Standardfarbe</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────────────────── */
+const S = {
+  aktiveFarbe:  null,
+  zeichenModus: false,
+  stiftFarbe:   '#F5717A',
+  stiftDicke:   3,
+  aktiveAnsicht: 'dek',  // 'dek' | 'verb'
+  // Deklination
+  nomSichtbar: true,
+  genSichtbar: true,
+  datSichtbar: true,
+  akkSichtbar: true,
+  // Verb – Personen (v3 = er/sie/es ist immer sichtbar, kein Toggle)
+  v1Sichtbar: true,
+  v2Sichtbar: true,
+  v4Sichtbar: true,
+  v5Sichtbar: true,
+  v6Sichtbar: true,
+  // Verb – Spalten
+  vc1Sichtbar: true,
+  vc2Sichtbar: true,
+  vc3Sichtbar: true,
+  vc4Sichtbar: true,
+  fontSize: 64,
+};
+
+/* ─────────────────────────────────────────────────────────
+   TAB-UMSCHALTER
+───────────────────────────────────────────────────────── */
+function zeigeAnsicht(ansicht) {
+  S.aktiveAnsicht = ansicht;
+  document.querySelectorAll('.ansicht').forEach(el =>
+    el.classList.toggle('aktiv', el.id === 'ansicht-' + ansicht));
+  document.getElementById('tab-dek').classList.toggle('aktiv', ansicht === 'dek');
+  document.getElementById('tab-verb').classList.toggle('aktiv', ansicht === 'verb');
+  document.getElementById('toggles-dek').style.display  = ansicht === 'dek'  ? 'flex' : 'none';
+  document.getElementById('toggles-verb').style.display = ansicht === 'verb' ? 'flex' : 'none';
+  passeCanvas();
+}
+document.getElementById('tab-dek').addEventListener('click',  () => zeigeAnsicht('dek'));
+document.getElementById('tab-verb').addEventListener('click', () => zeigeAnsicht('verb'));
+
+/* ─────────────────────────────────────────────────────────
+   GRID – DEKLINATION
+───────────────────────────────────────────────────────── */
+const tabDek = document.getElementById('tabelle-dek');
+
+function aktualisiereGridDek() {
+  const { nomSichtbar: n, genSichtbar: g, datSichtbar: d, akkSichtbar: a } = S;
+  // Spaltenbreite: sichtbar = 1fr, versteckt = 0px (Zellen bleiben an ihrer Position!)
+  tabDek.style.gridTemplateColumns = [
+    '100px',
+    n ? '1fr' : '0px',
+    g ? '1fr' : '0px',
+    d ? '1fr' : '0px',
+    a ? '1fr' : '0px',
+  ].join(' ');
+  tabDek.style.gridTemplateRows = '50px repeat(4, 1fr)';
+
+  tabDek.querySelectorAll('.col-nom').forEach(el => el.classList.toggle('versteckt', !n));
+  tabDek.querySelectorAll('.col-gen').forEach(el => el.classList.toggle('versteckt', !g));
+  tabDek.querySelectorAll('.col-dat').forEach(el => el.classList.toggle('versteckt', !d));
+  tabDek.querySelectorAll('.col-akk').forEach(el => el.classList.toggle('versteckt', !a));
+}
+
+/* ─────────────────────────────────────────────────────────
+   GRID – KONJUGATION
+───────────────────────────────────────────────────────── */
+const verbLinks = document.getElementById('verb-links');
+const verbRechts = document.getElementById('verb-rechts');
+
+function aktualisiereGridVerb() {
+  const { vc1Sichtbar: c1, vc2Sichtbar: c2, vc3Sichtbar: c3, vc4Sichtbar: c4 } = S;
+  const { v1Sichtbar: p1, v2Sichtbar: p2,
+          v4Sichtbar: p4, v5Sichtbar: p5, v6Sichtbar: p6 } = S;
+  // p3 (er/sie/es) ist immer true
+  const p3 = true;
+
+  // Zeilen-Template: sichtbar = 1fr, versteckt = 0px (Zellen bleiben an ihrer Position!)
+  const rowArr = [
+    '46px',           // Header
+    p1 ? '1fr' : '0px',  // ich
+    p2 ? '1fr' : '0px',  // du
+    '1fr',            // er/sie/es – immer sichtbar
+    p4 ? '1fr' : '0px',  // wir
+    p5 ? '1fr' : '0px',  // ihr
+    p6 ? '1fr' : '0px',  // sie/Sie
+  ];
+  const rowStr = rowArr.join(' ');
+
+  // Linke Spalte: nur Zeilen
+  verbLinks.style.gridTemplateRows = rowStr;
+
+  // Rechte Seite: Spalten auf 1fr (sichtbar) oder 0px (versteckt) – Zellen bleiben an Position!
+  verbRechts.style.gridTemplateColumns = [
+    c1 ? '1fr' : '0px',
+    c2 ? '1fr' : '0px',
+    c3 ? '1fr' : '0px',
+    c4 ? '1fr' : '0px',
+  ].join(' ');
+  verbRechts.style.gridTemplateRows = rowStr;
+
+  // Spalten-Sichtbarkeit (nur in #verb-rechts)
+  verbRechts.querySelectorAll('.col-v1').forEach(el => el.classList.toggle('versteckt', !c1));
+  verbRechts.querySelectorAll('.col-v2').forEach(el => el.classList.toggle('versteckt', !c2));
+  verbRechts.querySelectorAll('.col-v3').forEach(el => el.classList.toggle('versteckt', !c3));
+  verbRechts.querySelectorAll('.col-v4').forEach(el => el.classList.toggle('versteckt', !c4));
+
+  // Personen-Sichtbarkeit (in BEIDEN Seiten synchron; v3 = er/sie/es immer sichtbar)
+  document.querySelectorAll('#ansicht-verb .zeile-v1').forEach(el => el.classList.toggle('versteckt', !p1));
+  document.querySelectorAll('#ansicht-verb .zeile-v2').forEach(el => el.classList.toggle('versteckt', !p2));
+  document.querySelectorAll('#ansicht-verb .zeile-v3').forEach(el => el.classList.remove('versteckt'));
+  document.querySelectorAll('#ansicht-verb .zeile-v4').forEach(el => el.classList.toggle('versteckt', !p4));
+  document.querySelectorAll('#ansicht-verb .zeile-v5').forEach(el => el.classList.toggle('versteckt', !p5));
+  document.querySelectorAll('#ansicht-verb .zeile-v6').forEach(el => el.classList.toggle('versteckt', !p6));
+}
+
+// Initialisierung
+aktualisiereGridDek();
+aktualisiereGridVerb();
+
+// Toggle-Buttons: Anfangszustand aus S laden
+[
+  ['toggle-nom', 'nomSichtbar'],
+  ['toggle-gen', 'genSichtbar'],
+  ['toggle-dat', 'datSichtbar'],
+  ['toggle-akk', 'akkSichtbar'],
+  ['toggle-v1',  'v1Sichtbar'],
+  ['toggle-v2',  'v2Sichtbar'],
+  ['toggle-v4',  'v4Sichtbar'],
+  ['toggle-v5',  'v5Sichtbar'],
+  ['toggle-v6',  'v6Sichtbar'],
+  ['toggle-vc1', 'vc1Sichtbar'],
+  ['toggle-vc2', 'vc2Sichtbar'],
+  ['toggle-vc3', 'vc3Sichtbar'],
+  ['toggle-vc4', 'vc4Sichtbar'],
+].forEach(([id, key]) => {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('aus', !S[key]);
+});
+
+/* ─────────────────────────────────────────────────────────
+   DEKLINATIONS-TOGGLES
+───────────────────────────────────────────────────────── */
+[
+  ['toggle-nom', 'nomSichtbar', 'Nominativ'],
+  ['toggle-gen', 'genSichtbar', 'Genitiv'],
+  ['toggle-dat', 'datSichtbar', 'Dativ'],
+  ['toggle-akk', 'akkSichtbar', 'Akkusativ'],
+].forEach(([id, key, name]) => {
+  document.getElementById(id).addEventListener('click', function() {
+    S[key] = !S[key];
+    this.classList.toggle('aus', !S[key]);
+    aktualisiereGridDek();
+    zeigToast(S[key] ? name + ' eingeblendet' : name + ' ausgeblendet');
+  });
+});
+
+/* ─────────────────────────────────────────────────────────
+   VERB-TOGGLES (Personen)
+───────────────────────────────────────────────────────── */
+// er/sie/es (toggle-v3) hat keinen Toggle-Button → wird übersprungen
+[
+  ['toggle-v1', 'v1Sichtbar', 'ich'],
+  ['toggle-v2', 'v2Sichtbar', 'du'],
+  ['toggle-v4', 'v4Sichtbar', 'wir'],
+  ['toggle-v5', 'v5Sichtbar', 'ihr'],
+  ['toggle-v6', 'v6Sichtbar', 'sie/Sie'],
+].forEach(([id, key, name]) => {
+  document.getElementById(id).addEventListener('click', function() {
+    S[key] = !S[key];
+    this.classList.toggle('aus', !S[key]);
+    aktualisiereGridVerb();
+    zeigToast('"' + name + '" ' + (S[key] ? 'eingeblendet' : 'ausgeblendet'));
+  });
+});
+
+/* ─────────────────────────────────────────────────────────
+   VERB-TOGGLES (Spalten)
+───────────────────────────────────────────────────────── */
+[
+  ['toggle-vc1', 'vc1Sichtbar', 'Spalte 1'],
+  ['toggle-vc2', 'vc2Sichtbar', 'Spalte 2'],
+  ['toggle-vc3', 'vc3Sichtbar', 'Spalte 3'],
+  ['toggle-vc4', 'vc4Sichtbar', 'Spalte 4'],
+].forEach(([id, key, name]) => {
+  document.getElementById(id).addEventListener('click', function() {
+    S[key] = !S[key];
+    this.classList.toggle('aus', !S[key]);
+    aktualisiereGridVerb();
+    zeigToast(S[key] ? name + ' eingeblendet' : name + ' ausgeblendet');
+  });
+});
+
+/* ─────────────────────────────────────────────────────────
+   FARB-PICKER FÜR PRONOMEN-ZEILEN
+───────────────────────────────────────────────────────── */
+const FARB_PALETTE = [
+  '#A78BFA', // lila
+  '#34D399', // grün
+  '#F472B6', // pink
+  '#60A5FA', // blau
+  '#FBBF24', // gold
+  '#F87171', // rot
+  '#FB923C', // orange
+  '#4ADE80', // hellgrün
+  '#38BDF8', // hellblau
+  '#E879F9', // magenta
+  '#FDE047', // gelb
+  '#ffffff', // weiß
+];
+
+// Standard-Farben (zum Zurücksetzen)
+const STANDARD_FARBEN = {
+  v1: '#A78BFA',
+  v2: '#34D399',
+  v3: '#F472B6',
+  v4: '#60A5FA',
+  v5: '#FBBF24',
+  v6: '#F87171',
+};
+
+// Aktuelle benutzerdefinierte Farben (startet mit Standardwerten)
+const ZEILEN_FARBEN = { ...STANDARD_FARBEN };
+
+const popup      = document.getElementById('farb-popup');
+const popupTitel = document.getElementById('farb-popup-titel');
+const popupReihe = document.getElementById('farb-popup-reihe');
+const popupReset = document.getElementById('farb-popup-reset');
+let aktiveZeile  = null; // z.B. 'v1'
+
+function zeigeFarbPopup(zeile, label, anchorEl) {
+  aktiveZeile = zeile;
+  popupTitel.textContent = 'Farbe: ' + label;
+
+  // Farbpunkte aufbauen
+  popupReihe.innerHTML = '';
+  FARB_PALETTE.forEach(farbe => {
+    const p = document.createElement('div');
+    p.className = 'fp-punkt';
+    p.style.background = farbe;
+    if (farbe === '#ffffff') p.style.boxShadow = 'inset 0 0 0 1px #555';
+    if (farbe === ZEILEN_FARBEN[zeile]) p.classList.add('aktiv');
+    p.addEventListener('click', () => {
+      setzeFarbeZeile(zeile, farbe);
+      popup.classList.remove('sichtbar');
+    });
+    popupReihe.appendChild(p);
+  });
+
+  // Position berechnen (rechts neben der Pronomen-Zelle)
+  const rect = anchorEl.getBoundingClientRect();
+  popup.classList.add('sichtbar');
+  const pw = popup.offsetWidth  || 170;
+  const ph = popup.offsetHeight || 160;
+  let left = rect.right + 8;
+  let top  = rect.top + rect.height / 2 - ph / 2;
+  // Nicht aus dem Bildschirm raus
+  if (left + pw > window.innerWidth  - 8) left = rect.left - pw - 8;
+  if (top  < 8) top = 8;
+  if (top  + ph > window.innerHeight - 8) top = window.innerHeight - ph - 8;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
+
+function setzeFarbeZeile(zeile, farbe) {
+  ZEILEN_FARBEN[zeile] = farbe;
+  // CSS-Custom-Property überschreiben
+  document.documentElement.style.setProperty('--' + zeile, farbe);
+  // Hintergrund (bg) mit 14% Deckkraft ableiten
+  const r = parseInt(farbe.slice(1,3),16);
+  const g = parseInt(farbe.slice(3,5),16);
+  const b = parseInt(farbe.slice(5,7),16);
+  document.documentElement.style.setProperty('--' + zeile + '-bg',     `rgba(${r},${g},${b},0.14)`);
+  document.documentElement.style.setProperty('--' + zeile + '-border', `rgba(${r},${g},${b},0.55)`);
+}
+
+function resetFarbeZeile(zeile) {
+  const std = STANDARD_FARBEN[zeile];
+  ZEILEN_FARBEN[zeile] = std;
+  document.documentElement.style.removeProperty('--' + zeile);
+  document.documentElement.style.removeProperty('--' + zeile + '-bg');
+  document.documentElement.style.removeProperty('--' + zeile + '-border');
+}
+
+// Klick auf Pronomen-Zellen
+const PERSONEN_INFO = [
+  { zeile: 'v1', label: 'ich',      selector: '.row-v1.person-header' },
+  { zeile: 'v2', label: 'du',       selector: '.row-v2.person-header' },
+  { zeile: 'v3', label: 'er/sie/es',selector: '.row-v3.person-header' },
+  { zeile: 'v4', label: 'wir',      selector: '.row-v4.person-header' },
+  { zeile: 'v5', label: 'ihr',      selector: '.row-v5.person-header' },
+  { zeile: 'v6', label: 'sie/Sie',  selector: '.row-v6.person-header' },
+];
+
+PERSONEN_INFO.forEach(({ zeile, label, selector }) => {
+  document.querySelectorAll(selector).forEach(el => {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (aktiveZeile === zeile && popup.classList.contains('sichtbar')) {
+        popup.classList.remove('sichtbar');
+        aktiveZeile = null;
+      } else {
+        zeigeFarbPopup(zeile, label, el);
+      }
+    });
+  });
+});
+
+// Reset-Button
+popupReset.addEventListener('click', () => {
+  if (aktiveZeile) {
+    resetFarbeZeile(aktiveZeile);
+    popup.classList.remove('sichtbar');
+    aktiveZeile = null;
+  }
+});
+
+// Klick außerhalb schließt Popup
+document.addEventListener('click', (e) => {
+  if (!popup.contains(e.target)) {
+    popup.classList.remove('sichtbar');
+    aktiveZeile = null;
+  }
+});
+
+/* ─────────────────────────────────────────────────────────
+   SCHRIFTGRÖSSEN-SLIDER
+───────────────────────────────────────────────────────── */
+const slider  = document.getElementById('fs-slider');
+const fsValue = document.getElementById('fs-value');
+
+function setzeFontSize(px) {
+  S.fontSize = px;
+  document.documentElement.style.setProperty('--cell-fs', px + 'px');
+  fsValue.textContent = px;
+}
+slider.addEventListener('input', () => setzeFontSize(parseInt(slider.value)));
+setzeFontSize(80);
+
+/* ─────────────────────────────────────────────────────────
+   TAB-NAVIGATION (alle Zellen)
+───────────────────────────────────────────────────────── */
+document.querySelectorAll('.zell-inhalt').forEach(el => {
+  el.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const visible = [...document.querySelectorAll('#ansicht-' + S.aktiveAnsicht + ' .zell-inhalt')]
+      .filter(x => !x.closest('.versteckt'));
+    const i    = visible.indexOf(el);
+    const next = visible[e.shiftKey ? i - 1 : i + 1];
+    if (next) {
+      next.focus();
+      const r = document.createRange(), s = window.getSelection();
+      r.selectNodeContents(next); r.collapse(false);
+      s.removeAllRanges(); s.addRange(r);
+    }
+  });
+});
+
+/* ─────────────────────────────────────────────────────────
+   FARB-BUTTONS
+───────────────────────────────────────────────────────── */
+document.querySelectorAll('.farb-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.farb-btn').forEach(b => b.classList.remove('aktiv'));
+    btn.classList.add('aktiv');
+    S.aktiveFarbe = btn.dataset.farbe;
+  });
+});
+
+/* ─────────────────────────────────────────────────────────
+   MARKIERUNG EINFÄRBEN
+───────────────────────────────────────────────────────── */
+function wrapSelektion(styleFn) {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { zeigToast('Zuerst Text markieren'); return false; }
+  const range = sel.getRangeAt(0);
+  try {
+    const span = document.createElement('span');
+    styleFn(span);
+    range.surroundContents(span);
+    sel.removeAllRanges();
+    return true;
+  } catch(_) {
+    zeigToast('Nur innerhalb einer Zelle markieren');
+    sel.removeAllRanges();
+    return false;
+  }
+}
+
+function resetSelektion() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { zeigToast('Zuerst Text markieren'); return; }
+  const range = sel.getRangeAt(0);
+  const frag  = range.extractContents();
+  const tmp   = document.createElement('div');
+  tmp.appendChild(frag);
+  tmp.querySelectorAll('span').forEach(s => {
+    s.style.color = '';
+    s.style.textDecoration = '';
+    if (!s.style.cssText.trim()) s.replaceWith(document.createTextNode(s.textContent));
+  });
+  range.insertNode(tmp.firstChild || document.createTextNode(''));
+  sel.removeAllRanges();
+}
+
+const COLOR_MAP = { '#ffffff':{css:'#ffffff'}, '#FFD600':{css:'#FFD600'}, '#00E5FF':{css:'#00E5FF'}, '#FF40C8':{css:'#FF40C8'}, 'reset':{css:null} };
+
+document.getElementById('btn-markierung').addEventListener('click', () => {
+  if (!S.aktiveFarbe) { zeigToast('Zuerst eine Farbe wählen'); return; }
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { zeigToast('Zuerst Text markieren'); return; }
+  if (S.aktiveFarbe === 'reset') {
+    resetSelektion();
+  } else {
+    const farbe = COLOR_MAP[S.aktiveFarbe]?.css ?? S.aktiveFarbe;
+    wrapSelektion(span => { span.style.color = farbe; });
+  }
+});
+
+document.getElementById('btn-underline').addEventListener('click', () => {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { zeigToast('Zuerst Text markieren'); return; }
+  const range      = sel.getRangeAt(0);
+  const container  = range.commonAncestorContainer;
+  const parentSpan = container.nodeType === 1 ? container : container.parentElement;
+  const istUnter   = parentSpan?.style?.textDecoration?.includes('underline');
+  if (istUnter) {
+    try {
+      parentSpan.style.textDecoration = '';
+      if (!parentSpan.style.cssText.trim())
+        parentSpan.replaceWith(document.createTextNode(parentSpan.textContent));
+      sel.removeAllRanges();
+    } catch(_) {}
+  } else {
+    wrapSelektion(span => { span.style.textDecoration = 'underline'; span.style.textUnderlineOffset = '4px'; });
+  }
+});
+
+/* ─────────────────────────────────────────────────────────
+   ALLE LEEREN
+───────────────────────────────────────────────────────── */
+document.getElementById('btn-leeren').addEventListener('click', () => {
+  if (!confirm('Alle Zellen der aktuellen Ansicht leeren?')) return;
+  document.querySelectorAll('#ansicht-' + S.aktiveAnsicht + ' .zell-inhalt, #ansicht-' + S.aktiveAnsicht + ' .col-header-inhalt')
+    .forEach(el => el.innerHTML = '');
+  zeigToast('Zellen geleert');
+});
+
+/* ─────────────────────────────────────────────────────────
+   CANVAS / FREIHAND
+───────────────────────────────────────────────────────── */
+const canvas = document.getElementById('zeichen-canvas');
+const ctx    = canvas.getContext('2d');
+
+function passeCanvas() {
+  const h = document.getElementById('toolbar').offsetHeight;
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight - h;
+  canvas.style.top = h + 'px';
+}
+passeCanvas();
+window.addEventListener('resize', () => {
+  passeCanvas();
+  aktualisiereGridDek();
+  aktualisiereGridVerb();
+});
+
+let amZeichnen = false, lx = 0, ly = 0;
+function startZ(x, y) { amZeichnen = true; lx = x; ly = y; }
+function weiterZ(x, y) {
+  if (!amZeichnen) return;
+  ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(x, y);
+  ctx.strokeStyle = S.stiftFarbe;
+  ctx.lineWidth   = S.stiftDicke;
+  ctx.lineCap = ctx.lineJoin = 'round';
+  ctx.stroke();
+  lx = x; ly = y;
+}
+function stopZ() { amZeichnen = false; }
+
+canvas.addEventListener('mousedown',  e => startZ(e.offsetX, e.offsetY));
+canvas.addEventListener('mousemove',  e => weiterZ(e.offsetX, e.offsetY));
+canvas.addEventListener('mouseup',    stopZ);
+canvas.addEventListener('mouseleave', stopZ);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); const t=e.touches[0],r=canvas.getBoundingClientRect(); startZ(t.clientX-r.left,t.clientY-r.top); }, {passive:false});
+canvas.addEventListener('touchmove',  e => { e.preventDefault(); const t=e.touches[0],r=canvas.getBoundingClientRect(); weiterZ(t.clientX-r.left,t.clientY-r.top); }, {passive:false});
+canvas.addEventListener('touchend',   stopZ);
+canvas.addEventListener('touchcancel',stopZ);
+
+const btnFreihand = document.getElementById('btn-freihand');
+const zeichenOpts = document.getElementById('zeichen-opts');
+btnFreihand.addEventListener('click', () => {
+  S.zeichenModus = !S.zeichenModus;
+  canvas.style.pointerEvents = S.zeichenModus ? 'all' : 'none';
+  btnFreihand.classList.toggle('on', S.zeichenModus);
+  zeichenOpts.style.display = S.zeichenModus ? 'flex' : 'none';
+  zeigToast(S.zeichenModus ? 'Freihand aktiv' : 'Freihand aus');
+});
+
+document.querySelectorAll('.stift-farbe').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.stift-farbe').forEach(e => e.classList.remove('aktiv'));
+    el.classList.add('aktiv');
+    S.stiftFarbe = el.dataset.farbe;
+  });
+});
+document.querySelectorAll('.stift-sz').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.stift-sz').forEach(e => e.classList.remove('aktiv'));
+    el.classList.add('aktiv');
+    S.stiftDicke = +el.dataset.dicke;
+  });
+});
+document.getElementById('btn-canvas-loeschen').addEventListener('click', () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  zeigToast('Zeichnung gelöscht');
+});
+
+/* ─────────────────────────────────────────────────────────
+   PNG EXPORT
+───────────────────────────────────────────────────────── */
+document.getElementById('btn-export').addEventListener('click', async () => {
+  zeigToast('Export wird erstellt …');
+  canvas.style.display = 'none';
+  const aktTab = S.aktiveAnsicht === 'verb'
+    ? document.getElementById('verb-layout')
+    : document.getElementById('tabelle-dek');
+  try {
+    const tc = await html2canvas(aktTab, { backgroundColor: '#0C0E16', scale: 2, useCORS: true, logging: false });
+    const fin = document.createElement('canvas');
+    fin.width = tc.width; fin.height = tc.height;
+    const fc = fin.getContext('2d');
+    fc.drawImage(tc, 0, 0);
+    const tr = aktTab.getBoundingClientRect();
+    fc.drawImage(canvas, tr.left, 0, tr.width, canvas.height, 0, 0, fin.width, fin.height);
+    const a = document.createElement('a');
+    a.download = `grammatik-trainer-${Date.now()}.png`;
+    a.href = fin.toDataURL('image/png');
+    a.click();
+    zeigToast('PNG gespeichert!');
+  } catch(e) {
+    zeigToast('Fehler: ' + e.message);
+  } finally {
+    canvas.style.display = 'block';
+  }
+});
+
+/* ─────────────────────────────────────────────────────────
+   TOAST
+───────────────────────────────────────────────────────── */
+let toastT = null;
+function zeigToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>
